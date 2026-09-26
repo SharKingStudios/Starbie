@@ -16,10 +16,15 @@ This project was created to be the week 1 beginner tutorial for [halflife](https
 
 ## Project status
 
-This is currently a hardware-first example project. The PCB design and renders are included here; the pet's firmware and final behavior are still to come.
+The PCB design, renders, and an Arduino starter firmware are included here. The default program is a two-eye pet with a tilt-controlled radial menu, hidden stats, and a shake reaction.
+
+## Software
+
+[`Firmware/`](Firmware/) contains one self-contained Arduino IDE sketch for the XIAO ESP32-C3. Builders customize pins, menu actions, starting values, and motion settings together at the top of the sketch. The folder also includes a draggable [browser simulator](Firmware/simulator.html). See the [firmware README](Firmware/README.md) for setup notes.
 
 ## Repository contents
 
 - `PCB/` - KiCad source files and fabrication exports
 - `Renders/` - front and back PCB renders
 - `Week 1 Guide.md` - project guide material
+- `Firmware/` - Arduino IDE starter sketch and interactive browser simulator

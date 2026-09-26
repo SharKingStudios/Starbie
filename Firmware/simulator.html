@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Starbie</title>
+  <style>
+    :root { color-scheme:dark; --ink:#fff8d9; --muted:#cdbb78; --mint:#ffdb64; --screen:#fff; --board-zoom:2.88; }
+    * { box-sizing:border-box; }
+    body { min-height:100vh; margin:0; overflow-x:hidden; background:radial-gradient(circle at 20% 50%,#4b3d10 0,#171206 38%,#080704 72%); color:var(--ink); font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    main { width:100%; min-height:100vh; margin:0; display:grid; grid-template-columns:minmax(0,1.45fr) minmax(290px,.55fr); gap:clamp(26px,5vw,88px); align-items:center; padding:32px; }
+    .scene { min-height:min(78vh,790px); display:grid; place-items:center; overflow:visible; position:relative; perspective:2600px; touch-action:none; user-select:none; cursor:grab; }
+    .scene.dragging { cursor:grabbing; }
+    .board-wrap { width:min(100%,860px); aspect-ratio:1724/930; transform:scale(var(--board-zoom)); transform-style:preserve-3d; }
+    .board { position:relative; width:100%; height:100%; border:0; border-radius:0; background:url("../Renders/StarbieFlat.png") center/100% 100% no-repeat; transform-style:preserve-3d; }
+    .board::after { display:none; }.silk { display:none; }
+    .oled-frame { --screen-depth:2px; position:absolute; left:48.20%; top:47.53%; width:13.17%; height:13.01%; transform:translate(-50%,-50%); transform-style:preserve-3d; background:#000; }
+    .oled-frame::before,.oled-frame::after { content:""; position:absolute; display:block; background:#050605; pointer-events:none; }
+    .oled-frame::before { left:0; bottom:0; width:100%; height:var(--screen-depth); transform-origin:50% 100%; transform:rotateX(-90deg); }
+    .oled-frame::after { top:0; right:0; width:var(--screen-depth); height:100%; transform-origin:100% 50%; transform:rotateY(90deg); }
+    canvas { display:block; width:100%; height:100%; position:relative; transform:translateZ(var(--screen-depth)); backface-visibility:hidden; image-rendering:crisp-edges; image-rendering:pixelated; background:#000; }
+    .board-button { position:absolute; z-index:10; border:0; border-radius:10%; background:transparent; color:transparent; transform:translateZ(8px); cursor:pointer; touch-action:manipulation; }.board-button:focus-visible { outline:2px solid var(--mint); outline-offset:2px; }.board-button:active { transform:translateZ(7px); }.board.show-button-targets .board-button { display:grid; place-items:center; border:2px dashed var(--mint); background:rgba(255,219,100,.28); color:#1b1604; font:700 1.1rem ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }.one { left:27%; top:34.5%; width:16%; height:22%; }.two { left:32%; top:58%; width:16%; height:23%; }
+    .info { position:relative; z-index:2; align-self:center; max-width:370px; color:var(--muted); }
+    .state { margin:0 0 36px; color:var(--mint); font-size:.98rem; font-weight:700; letter-spacing:.18em; }
+    .stat { margin:25px 0; }.stat-header { display:flex; justify-content:space-between; margin-bottom:10px; font-size:.9rem; font-weight:700; letter-spacing:.12em; }.bar { height:6px; overflow:hidden; background:rgba(255,248,217,.14); }.bar i { display:block; height:100%; background:var(--mint); transition:width 180ms ease; }
+    .controls { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:38px; }.controls button { min-height:54px; border:1px solid rgba(255,248,217,.28); border-radius:0; background:transparent; color:var(--ink); font:700 1rem ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; cursor:pointer; }.controls button:hover,.controls button:focus-visible { border-color:var(--mint); color:var(--mint); outline:none; }.controls button:active { transform:translateY(1px); }
+    .temperature { display:flex; align-items:center; gap:14px; margin-top:31px; color:var(--muted); font:.9rem ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }.temperature output { color:var(--ink); min-width:42px; }.temperature input[type="range"] { flex:1; accent-color:var(--mint); }
+    @media (max-width:820px) { main { width:min(calc(100% - 32px),680px); grid-template-columns:1fr; gap:20px; padding:20px 0 40px; }.scene { min-height:0; }.info { width:100%; max-width:none; }.board-wrap { width:100%; } }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="scene" id="scene" aria-label="Draggable simulated Starbie board">
+        <div class="board-wrap"><div class="board" id="board">
+          <div class="oled-frame"><canvas id="display" width="128" height="64" aria-label="128 by 64 pixel OLED display"></canvas></div>
+          <button class="board-button one" id="buttonOne" type="button" title="Button 1: open or confirm menu">1</button>
+          <button class="board-button two" id="buttonTwo" type="button" title="Button 2: show or hide stats">2</button>
+        </div></div>
+    </section>
+    <aside class="info" aria-label="Starbie information and controls">
+        <p class="state" id="stateText">READY</p>
+        <div class="stat"><div class="stat-header"><span>JOY</span><span id="joyValue">70</span></div><div class="bar"><i id="joyBar"></i></div></div>
+        <div class="stat"><div class="stat-header"><span>ENERGY</span><span id="energyValue">75</span></div><div class="bar"><i id="energyBar"></i></div></div>
+        <div class="stat"><div class="stat-header"><span>FULLNESS</span><span id="fullnessValue">65</span></div><div class="bar"><i id="fullnessBar"></i></div></div>
+        <div class="controls">
+          <button id="menu" type="button" title="Button 1: open or choose" aria-label="Button 1: open or choose">1</button>
+          <button id="stats" type="button" title="Button 2: show or hide stats" aria-label="Button 2: show or hide stats">2</button>
+          <button id="shake" type="button" title="Shake (space)" aria-label="Shake">~</button>
+          <button id="reset" type="button" title="Reset pet and board" aria-label="Reset pet and board">R</button>
+        </div>
+        <div class="temperature"><output id="temperatureValue">22C</output><input id="temperature" aria-label="Room temperature" type="range" min="0" max="40" value="22"></div>
+      </aside>
+  </main>
+  <script>
+    // Edit this number to change the PCB close-up: 1 is the whole board, 2.88 focuses on the OLED and buttons.
+    const BOARD_ZOOM = 2.88;
+    const SKETCH_URL = "Starbie/Starbie.ino";
+    const DRAG_SHAKE_SPEED_PX_PER_MS = 1.35;
+    const OLED_ON = "#fff";
+    // A binary 3 by 5 font: unlike canvas fillText(), it never creates gray pixels.
+    const PIXEL_FONT = {
+      "A":["010","101","111","101","101"], "B":["110","101","110","101","110"], "C":["011","100","100","100","011"], "D":["110","101","101","101","110"],
+      "E":["111","100","110","100","111"], "F":["111","100","110","100","100"], "G":["011","100","101","101","011"], "H":["101","101","111","101","101"],
+      "I":["111","010","010","010","111"], "J":["001","001","001","101","010"], "K":["101","101","110","101","101"], "L":["100","100","100","100","111"],
+      "M":["101","111","111","101","101"], "N":["101","111","111","111","101"], "O":["010","101","101","101","010"], "P":["110","101","110","100","100"],
+      "Q":["010","101","101","011","001"], "R":["110","101","110","101","101"], "S":["011","100","010","001","110"], "T":["111","010","010","010","010"],
+      "U":["101","101","101","101","111"], "V":["101","101","101","101","010"], "W":["101","101","111","111","101"], "X":["101","101","010","101","101"],
+      "Y":["101","101","010","010","010"], "Z":["111","001","010","100","111"], "0":["111","101","101","101","111"], "1":["010","110","010","010","111"],
+      "2":["110","001","111","100","111"], "3":["110","001","011","001","110"], "4":["101","101","111","001","001"], "5":["111","100","110","001","110"],
+      "6":["011","100","111","101","111"], "7":["111","001","010","010","010"], "8":["111","101","111","101","111"], "9":["111","101","111","001","110"],
+      "%":["101","001","010","100","101"], "-":["000","000","111","000","000"], " ":["000","000","000","000","000"]
+    };
+    document.documentElement.style.setProperty("--board-zoom", Math.max(1, BOARD_ZOOM));
+
+    // Fallback values are used when this file is opened directly from disk.
+    // When it is served in a browser, these are refreshed from Starbie.ino on every reload.
+    let MENU_ITEMS = [
+      { label: "NAP", joy: 1, energy: 18, fullness: -4, reaction: "nap", x: 64, y: 12 },
+      { label: "PLAY", joy: 12, energy: -9, fullness: -5, reaction: "run", x: 108, y: 32 },
+      { label: "FEED", joy: 3, energy: 2, fullness: 18, reaction: "jump", x: 64, y: 53 },
+      { label: "PET", joy: 7, energy: 0, fullness: 0, reaction: "hearts", x: 20, y: 32 }
+    ];
+    // This is the same 32 x 32, one-bit sprite used by Starbie.ino.
+    let PET_WIDTH = 32, PET_HEIGHT = 32;
+    let PET_WALK_PIXEL_MS = 70, PET_PRE_JUMP_MS = 230, PET_JUMP_MS = 430, PET_JUMP_HEIGHT = 16, NAP_DURATION_MS = 48000, HEARTS_DURATION_MS = 1600, PLAY_LAP_MS = 800, PLAY_LAP_COUNT = 2;
+    let MENU_TILT_LIMIT = 6.0, MENU_CENTER_DEADZONE = 0.8, SWAP_MPU_AXES = false, MENU_X_DIRECTION = 1.0, MENU_Y_DIRECTION = -1.0;
+    let PET_SPRITE = [
+      0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+      0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x70,0x0a,0x00,0x00,0xf8,0x1f,0x00,
+      0x00,0x8c,0x3f,0x80,0x00,0x43,0xff,0x00,0x00,0x43,0xff,0x00,0x00,0x30,0x7e,0x00,
+      0x00,0x98,0x01,0x00,0x01,0x98,0x01,0x80,0x03,0x00,0x10,0xc0,0x03,0x04,0x00,0xc0,
+      0x01,0x8b,0x01,0x80,0x01,0xcb,0x03,0x80,0x03,0xc0,0x03,0xc0,0x03,0xc0,0x03,0xc0,
+      0x01,0xc0,0x03,0x80,0x01,0x80,0x01,0x80,0x00,0x60,0x06,0x00,0x00,0x3f,0xfc,0x00,
+      0x00,0x7f,0xfe,0x00,0x00,0x70,0x0e,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+      0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+    ];
+    const pet = { joy: 70, energy: 75, fullness: 65 };
+    let STARTING_PET = { joy: 70, energy: 75, fullness: 65 };
+    let SHAKE_JOY_CHANGE = 5, SHAKE_ENERGY_CHANGE = -2, SHAKE_FULLNESS_CHANGE = -1;
+    const PET = "pet", MENU = "menu", STATS = "stats";
+    let view = PET, rotationX = 0, rotationY = 0, centerRotationX = 0, centerRotationY = 0, ballX = 64, ballY = 32, selected = -1, drag = null, shakeUntil = 0, petJumpStartedAt = 0, napUntil = 0, heartsUntil = 0, playRunStartedAt = 0, nappingPetX = 0, lastDragShakeAt = 0, latestSketchSource = "", sketchFetchInFlight = false;
+    const board = document.querySelector("#board");
+    const scene = document.querySelector("#scene");
+    const canvas = document.querySelector("#display");
+    const screen = canvas.getContext("2d");
+    screen.imageSmoothingEnabled = false;
+    const $ = (selector) => document.querySelector(selector);
+    const clamp = (value) => Math.max(0, Math.min(100, value));
+
+    function pixelTextWidth(text, scale = 1) {
+      return [...String(text)].reduce((width, character) => width + ((PIXEL_FONT[character.toUpperCase()] || PIXEL_FONT[" "])[0].length + 1) * scale, 0) - scale;
+    }
+    function drawPixelText(text, x, y, scale = 1) {
+      let cursor = x;
+      for (const character of String(text).toUpperCase()) {
+        const glyph = PIXEL_FONT[character] || PIXEL_FONT[" "];
+        glyph.forEach((row, rowIndex) => {
+          [...row].forEach((pixel, columnIndex) => {
+            if (pixel === "1") screen.fillRect(cursor + columnIndex * scale, y + rowIndex * scale, scale, scale);
+          });
+        });
+        cursor += (glyph[0].length + 1) * scale;
+      }
+    }
+    function fillPixel(x, y) { screen.fillRect(Math.round(x), Math.round(y), 1, 1); }
+    function drawPixelLine(x0, y0, x1, y1) {
+      x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
+      const deltaX = Math.abs(x1 - x0), stepX = x0 < x1 ? 1 : -1;
+      const deltaY = -Math.abs(y1 - y0), stepY = y0 < y1 ? 1 : -1;
+      let error = deltaX + deltaY;
+      while (true) {
+        fillPixel(x0, y0);
+        if (x0 === x1 && y0 === y1) return;
+        const doubledError = error * 2;
+        if (doubledError >= deltaY) { error += deltaY; x0 += stepX; }
+        if (doubledError <= deltaX) { error += deltaX; y0 += stepY; }
+      }
+    }
+    function drawPixelRect(x, y, width, height) {
+      drawPixelLine(x, y, x + width - 1, y);
+      drawPixelLine(x, y, x, y + height - 1);
+      drawPixelLine(x + width - 1, y, x + width - 1, y + height - 1);
+      drawPixelLine(x, y + height - 1, x + width - 1, y + height - 1);
+    }
+    function drawPixelCircle(centerX, centerY, radius, filled) {
+      centerX = Math.round(centerX); centerY = Math.round(centerY);
+      for (let y = -radius; y <= radius; y++) {
+        for (let x = -radius; x <= radius; x++) {
+          const distance = x * x + y * y;
+          if ((filled && distance <= radius * radius) || (!filled && Math.abs(distance - radius * radius) <= radius)) fillPixel(centerX + x, centerY + y);
+        }
+      }
+    }
+
+    function sketchNumber(source, name, fallback) {
+      const expression = new RegExp("\\bconst\\s+(?:u?int(?:8|16|32)_t|int|float)\\s+" + name + "\\s*=\\s*(-?\\d+(?:\\.\\d+)?)");
+      const match = source.match(expression);
+      return match ? Number(match[1]) : fallback;
+    }
+    function sketchBoolean(source, name, fallback) {
+      const expression = new RegExp("\\bconst\\s+bool\\s+" + name + "\\s*=\\s*(true|false)");
+      const match = source.match(expression);
+      return match ? match[1] === "true" : fallback;
+    }
+    function applySketchConfiguration(source, resetPet) {
+      PET_WIDTH = sketchNumber(source, "PET_SPRITE_WIDTH", PET_WIDTH);
+      PET_HEIGHT = sketchNumber(source, "PET_SPRITE_HEIGHT", PET_HEIGHT);
+      PET_WALK_PIXEL_MS = sketchNumber(source, "PET_WALK_PIXEL_MS", PET_WALK_PIXEL_MS);
+      PET_PRE_JUMP_MS = sketchNumber(source, "PET_PRE_JUMP_MS", PET_PRE_JUMP_MS);
+      PET_JUMP_MS = sketchNumber(source, "PET_JUMP_MS", PET_JUMP_MS);
+      PET_JUMP_HEIGHT = sketchNumber(source, "PET_JUMP_HEIGHT", PET_JUMP_HEIGHT);
+      NAP_DURATION_MS = sketchNumber(source, "NAP_DURATION_MS", NAP_DURATION_MS);
+      HEARTS_DURATION_MS = sketchNumber(source, "HEARTS_DURATION_MS", HEARTS_DURATION_MS);
+      PLAY_LAP_MS = sketchNumber(source, "PLAY_LAP_MS", PLAY_LAP_MS);
+      PLAY_LAP_COUNT = sketchNumber(source, "PLAY_LAP_COUNT", PLAY_LAP_COUNT);
+      MENU_TILT_LIMIT = sketchNumber(source, "MENU_TILT_LIMIT", MENU_TILT_LIMIT);
+      MENU_CENTER_DEADZONE = sketchNumber(source, "MENU_CENTER_DEADZONE", MENU_CENTER_DEADZONE);
+      SWAP_MPU_AXES = sketchBoolean(source, "SWAP_MPU_AXES", SWAP_MPU_AXES);
+      MENU_X_DIRECTION = sketchNumber(source, "MENU_X_DIRECTION", MENU_X_DIRECTION);
+      MENU_Y_DIRECTION = sketchNumber(source, "MENU_Y_DIRECTION", MENU_Y_DIRECTION);
+      SHAKE_JOY_CHANGE = sketchNumber(source, "SHAKE_JOY_CHANGE", SHAKE_JOY_CHANGE);
+      SHAKE_ENERGY_CHANGE = sketchNumber(source, "SHAKE_ENERGY_CHANGE", SHAKE_ENERGY_CHANGE);
+      SHAKE_FULLNESS_CHANGE = sketchNumber(source, "SHAKE_FULLNESS_CHANGE", SHAKE_FULLNESS_CHANGE);
+
+      const spriteBlock = source.match(/PET_SPRITE\[\]\s*=\s*\{([\s\S]*?)\};/);
+      const sprite = spriteBlock ? [...spriteBlock[1].matchAll(/0x[0-9a-f]+/gi)].map((match) => Number.parseInt(match[0], 16)) : [];
+      if (sprite.length === Math.ceil(PET_WIDTH * PET_HEIGHT / 8)) PET_SPRITE = sprite;
+
+      const menuBlock = source.match(/const\s+MenuItem\s+MENU_ITEMS\[\]\s*=\s*\{([\s\S]*?)\};/);
+      const reactionNames = { NAP_REACTION:"nap", JUMP_REACTION:"jump", HEART_REACTION:"hearts", RUN_REACTION:"run" };
+      const positions = [[64,12], [108,32], [64,53], [20,32]];
+      const entries = menuBlock ? [...menuBlock[1].matchAll(/\{\s*"([^"]+)"\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(\w+)\s*\}/g)] : [];
+      if (entries.length === 4) MENU_ITEMS = entries.map((entry, index) => ({ label:entry[1], joy:Number(entry[2]), energy:Number(entry[3]), fullness:Number(entry[4]), reaction:reactionNames[entry[5]] || "jump", x:positions[index][0], y:positions[index][1] }));
+
+      STARTING_PET = {
+        joy: sketchNumber(source, "STARTING_JOY", STARTING_PET.joy),
+        energy: sketchNumber(source, "STARTING_ENERGY", STARTING_PET.energy),
+        fullness: sketchNumber(source, "STARTING_FULLNESS", STARTING_PET.fullness)
+      };
+      if (resetPet) Object.assign(pet, STARTING_PET);
+      updatePanel();
+    }
+    async function syncFromSketch() {
+      if (window.location.protocol === "file:" || sketchFetchInFlight) return;
+      sketchFetchInFlight = true;
+      try {
+        const response = await fetch(SKETCH_URL, { cache:"no-store" });
+        if (response.ok) {
+          const source = await response.text();
+          if (source !== latestSketchSource) {
+            const isFirstSync = latestSketchSource === "";
+            latestSketchSource = source;
+            applySketchConfiguration(source, isFirstSync);
+          }
+        }
+      } catch (_) {
+        // Browsers block file-to-file fetches; the matching fallback above keeps direct opening useful.
+      } finally {
+        sketchFetchInFlight = false;
+      }
+    }
+
+    function buttonOne() {
+      if (view === MENU) chooseMenuItem();
+      else {
+        view = MENU;
+        selected = -1;
+        ballX = 64;
+        ballY = 32;
+        // Opening the menu makes the board's current angle the new center.
+        centerRotationX = rotationX;
+        centerRotationY = rotationY;
+      }
+      updatePanel();
+    }
+    function buttonTwo() { view = view === STATS ? PET : STATS; updatePanel(); }
+    function chooseMenuItem() {
+      if (selected < 0) return;
+      const item = MENU_ITEMS[selected];
+      pet.joy = clamp(pet.joy + item.joy);
+      pet.energy = clamp(pet.energy + item.energy);
+      pet.fullness = clamp(pet.fullness + item.fullness);
+      const now = performance.now();
+      napUntil = 0;
+      heartsUntil = 0;
+      playRunStartedAt = 0;
+      if (item.reaction === "nap") {
+        petJumpStartedAt = 0;
+        nappingPetX = petWalkingX(now);
+        napUntil = now + NAP_DURATION_MS;
+      } else if (item.reaction === "run") {
+        petJumpStartedAt = 0;
+        playRunStartedAt = now;
+        heartsUntil = now + playRunDuration();
+      } else {
+        petJumpStartedAt = now;
+        if (item.reaction === "hearts") heartsUntil = now + HEARTS_DURATION_MS;
+      }
+      view = PET;
+    }
+    function shake() {
+      if (view !== PET) return;
+      pet.joy = clamp(pet.joy + SHAKE_JOY_CHANGE);
+      pet.energy = clamp(pet.energy + SHAKE_ENERGY_CHANGE);
+      pet.fullness = clamp(pet.fullness + SHAKE_FULLNESS_CHANGE);
+      napUntil = 0;
+      shakeUntil = performance.now() + 350;
+      updatePanel();
+    }
+    function transform(x = rotationX, y = rotationY) { return "rotateX(" + x + "deg) rotateY(" + y + "deg)"; }
+    function updateBall() {
+      if (view !== MENU) return;
+      const relativeX = rotationX - centerRotationX;
+      const relativeY = rotationY - centerRotationY;
+      // Convert visual board rotation into the same axes used in Starbie.ino.
+      let xTilt = relativeY;
+      let yTilt = relativeX;
+      if (SWAP_MPU_AXES) [xTilt, yTilt] = [yTilt, xTilt];
+      xTilt *= MENU_X_DIRECTION;
+      yTilt *= MENU_Y_DIRECTION;
+      const simulatorTiltLimit = MENU_TILT_LIMIT * (34 / 6);
+      xTilt = Math.max(-simulatorTiltLimit, Math.min(simulatorTiltLimit, xTilt));
+      yTilt = Math.max(-simulatorTiltLimit, Math.min(simulatorTiltLimit, yTilt));
+      const targetX = 64 + (xTilt / simulatorTiltLimit) * 37;
+      const targetY = 32 + (yTilt / simulatorTiltLimit) * 22;
+      ballX += (targetX - ballX) * 0.20;
+      ballY += (targetY - ballY) * 0.20;
+      const simulatorDeadzone = MENU_CENTER_DEADZONE * (34 / 6);
+      if (Math.abs(xTilt) < simulatorDeadzone && Math.abs(yTilt) < simulatorDeadzone) selected = -1;
+      else if (Math.abs(xTilt) > Math.abs(yTilt)) selected = xTilt > 0 ? 1 : 3;
+      else selected = yTilt > 0 ? 2 : 0;
+    }
+    function updatePanel() {
+      [["joy", pet.joy], ["energy", pet.energy], ["fullness", pet.fullness]].forEach((pair) => {
+        $("#" + pair[0] + "Value").textContent = pair[1];
+        $("#" + pair[0] + "Bar").style.width = pair[1] + "%";
+      });
+      const napping = performance.now() < napUntil;
+      const playing = isPlaying(performance.now());
+      let state = napping ? "NAPPING" : playing ? "PLAYING" : "READY";
+      if (view === MENU) state = selected < 0 ? "MENU" : "SELECT " + MENU_ITEMS[selected].label;
+      if (view === STATS) state = "STATS";
+      $("#stateText").textContent = state;
+    }
+    function petWalkingX(now) {
+      const farthestX = 128 - PET_WIDTH;
+      const roundTrip = farthestX * 2;
+      const step = Math.floor(now / PET_WALK_PIXEL_MS) % roundTrip;
+      return step <= farthestX ? step : roundTrip - step;
+    }
+    function playRunDuration() { return PLAY_LAP_MS * PLAY_LAP_COUNT; }
+    function isPlaying(now) { return playRunStartedAt !== 0 && now - playRunStartedAt < playRunDuration(); }
+    function playRunX(now) {
+      const farthestX = 128 - PET_WIDTH;
+      const lapAge = (now - playRunStartedAt) % PLAY_LAP_MS;
+      const progress = lapAge / PLAY_LAP_MS;
+      return progress < 0.5 ? Math.floor(progress * 2 * farthestX) : Math.floor((1 - progress) * 2 * farthestX);
+    }
+    function updatePetTimers(now) {
+      if (napUntil && now >= napUntil) {
+        napUntil = 0;
+        updatePanel();
+      }
+      if (playRunStartedAt && !isPlaying(now)) {
+        playRunStartedAt = 0;
+        updatePanel();
+      }
+    }
+    function drawBitmap(bitmap, x, y) {
+      screen.fillStyle = OLED_ON;
+      const bytesPerRow = PET_WIDTH / 8;
+      bitmap.forEach((byte, index) => {
+        const row = Math.floor(index / bytesPerRow);
+        const firstPixel = (index % bytesPerRow) * 8;
+        for (let bit = 0; bit < 8; bit++) {
+          if (byte & (0x80 >> bit)) screen.fillRect(x + firstPixel + bit, y + row, 1, 1);
+        }
+      });
+    }
+    function drawHeart(x, y) {
+      screen.fillStyle = OLED_ON;
+      screen.fillRect(x - 2, y, 2, 2); screen.fillRect(x + 1, y, 2, 2);
+      screen.fillRect(x - 3, y + 2, 7, 2); screen.fillRect(x - 2, y + 4, 5, 1);
+      screen.fillRect(x - 1, y + 5, 3, 1); screen.fillRect(x, y + 6, 1, 1);
+    }
+    function drawHearts(now, petX, petY) {
+      if (now >= heartsUntil) return;
+      const progress = 1 - (heartsUntil - now) / HEARTS_DURATION_MS;
+      const rise = Math.round(progress * 18);
+      drawHeart(petX + 10, petY - 3 - rise);
+      drawHeart(petX + 22, petY - 9 - Math.floor(rise / 2));
+    }
+    function drawSleepZs(now, petX, petY) {
+      const rise = Math.floor(now / 300) % 15;
+      screen.fillStyle = OLED_ON;
+      drawPixelText("Z", petX + 23, petY - 2 - rise);
+      drawPixelText("Z", petX + 28, petY - 8 - Math.floor(rise / 2));
+    }
+    function drawPet(now) {
+      screen.clearRect(0, 0, 128, 64);
+      let petX = now < napUntil ? nappingPetX : petWalkingX(now);
+      if (isPlaying(now)) petX = playRunX(now);
+      let petY = 64 - PET_HEIGHT;
+      if (now < shakeUntil) {
+        petX += Math.round(Math.sin(now / 18) * 3);
+      }
+      if (now >= napUntil && !isPlaying(now) && petJumpStartedAt) {
+        const animationAge = now - petJumpStartedAt;
+        if (animationAge < PET_PRE_JUMP_MS) petX += Math.round(Math.sin(now / 16) * 3);
+        else if (animationAge < PET_PRE_JUMP_MS + PET_JUMP_MS) {
+          const progress = (animationAge - PET_PRE_JUMP_MS) / PET_JUMP_MS;
+          petY -= Math.round(Math.sin(progress * Math.PI) * PET_JUMP_HEIGHT);
+        } else petJumpStartedAt = 0;
+      }
+      petX = Math.max(0, Math.min(128 - PET_WIDTH, petX));
+      drawBitmap(PET_SPRITE, petX, petY);
+      if (now < napUntil) drawSleepZs(now, petX, petY);
+      drawHearts(now, petX, petY);
+    }
+    function drawMenu() {
+      screen.clearRect(0, 0, 128, 64);
+      screen.fillStyle = OLED_ON;
+      drawPixelLine(0, 0, 127, 63);
+      drawPixelLine(0, 63, 127, 0);
+      MENU_ITEMS.forEach((item, index) => {
+        const x = item.x - 16, y = item.y - 6;
+        if (index === selected) { screen.fillStyle = OLED_ON; screen.fillRect(x, y, 33, 12); screen.fillStyle = "#000"; }
+        else { screen.fillStyle = OLED_ON; drawPixelRect(x, y, 33, 12); }
+        drawPixelText(item.label, item.x - Math.floor(pixelTextWidth(item.label) / 2), item.y - 2);
+      });
+      screen.fillStyle = OLED_ON; drawPixelCircle(64, 32, 11, false);
+      drawPixelCircle(ballX, ballY, 4, true);
+    }
+    function drawStats() {
+      screen.clearRect(0, 0, 128, 64);
+      screen.fillStyle = OLED_ON;
+      const drawBar = (y, label, value) => { drawPixelText(label, 4, y + 2); drawPixelRect(48, y, 57, 8); screen.fillRect(49, y + 1, Math.round(value * 0.55), 6); drawPixelText(value, 122 - pixelTextWidth(value), y + 2); };
+      drawBar(5, "JOY", pet.joy); drawBar(20, "ENERGY", pet.energy); drawBar(35, "FULL", pet.fullness);
+      drawPixelText("T" + $("#temperature").value + "C", 4, 56); drawPixelText("H50%", 89, 56);
+    }
+    function frame(now) { updatePetTimers(now); updateBall(); if (view === PET) drawPet(now); else if (view === MENU) drawMenu(); else drawStats(); requestAnimationFrame(frame); }
+    function beginDrag(event, startX = event.clientX, startY = event.clientY, startRotationX = rotationX, startRotationY = rotationY) {
+      drag = { x:startX, y:startY, rotationX:startRotationX, rotationY:startRotationY, lastX:event.clientX, lastY:event.clientY, lastAt:performance.now() };
+      scene.classList.add("dragging");
+      scene.setPointerCapture(event.pointerId);
+    }
+    function moveDrag(event) {
+      if (!drag) return;
+      const now = performance.now();
+      const elapsed = now - drag.lastAt;
+      const distance = Math.hypot(event.clientX - drag.lastX, event.clientY - drag.lastY);
+      if (view === PET && elapsed > 0 && distance / elapsed >= DRAG_SHAKE_SPEED_PX_PER_MS && now - lastDragShakeAt >= 650) { lastDragShakeAt = now; shake(); }
+      drag.lastX = event.clientX; drag.lastY = event.clientY; drag.lastAt = now;
+      rotationY = Math.max(-34, Math.min(34, drag.rotationY + (event.clientX - drag.x) * 0.42));
+      rotationX = Math.max(-34, Math.min(34, drag.rotationX - (event.clientY - drag.y) * 0.42));
+      board.style.transform = transform(); updatePanel();
+    }
+    const endDrag = () => { drag = null; scene.classList.remove("dragging"); };
+    function bindBoardButton(button, action) {
+      let press = null;
+      button.addEventListener("pointerdown", (event) => {
+        event.stopPropagation();
+        press = { x:event.clientX, y:event.clientY, rotationX:rotationX, rotationY:rotationY };
+        button.setPointerCapture(event.pointerId);
+      });
+      button.addEventListener("pointermove", (event) => {
+        if (!press || Math.hypot(event.clientX - press.x, event.clientY - press.y) < 10) return;
+        const start = press;
+        press = null;
+        button.releasePointerCapture(event.pointerId);
+        beginDrag(event, start.x, start.y, start.rotationX, start.rotationY);
+      });
+      button.addEventListener("pointerup", () => { if (press) action(); press = null; });
+      button.addEventListener("pointercancel", () => { press = null; });
+      button.addEventListener("click", (event) => event.preventDefault());
+    }
+    scene.addEventListener("pointerdown", (event) => { if (!event.target.closest("button")) beginDrag(event); });
+    scene.addEventListener("pointermove", moveDrag);
+    scene.addEventListener("pointerup", endDrag); scene.addEventListener("pointercancel", endDrag);
+    bindBoardButton($("#buttonOne"), buttonOne); bindBoardButton($("#buttonTwo"), buttonTwo);
+    $("#menu").addEventListener("click", buttonOne); $("#stats").addEventListener("click", buttonTwo); $("#shake").addEventListener("click", shake);
+    $("#temperature").addEventListener("input", (event) => { $("#temperatureValue").textContent = event.target.value + "C"; });
+    $("#reset").addEventListener("click", () => { Object.assign(pet, STARTING_PET); view = PET; rotationX = rotationY = centerRotationX = centerRotationY = 0; ballX = 64; ballY = 32; selected = -1; lastDragShakeAt = shakeUntil = petJumpStartedAt = napUntil = heartsUntil = playRunStartedAt = nappingPetX = 0; board.style.transform = transform(); updatePanel(); });
+    window.addEventListener("keydown", (event) => {
+      if (event.code === "Space" && !event.repeat) { event.preventDefault(); shake(); }
+      if (event.code === "Backslash" && !event.repeat) board.classList.toggle("show-button-targets");
+    });
+    updatePanel();
+    syncFromSketch();
+    window.setInterval(syncFromSketch, 1200);
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>
