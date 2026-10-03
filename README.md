@@ -4,6 +4,8 @@
 
 Starbie is a tiny motion-controlled digital pet: basically a desktop Tamagotchi with minimal gameplay buttons. Instead of pressing controls, you interact with it by physically moving the board.
 
+*Looking for the guide! You can find it [here](Week%201%20Guide.md)!*
+
 ## What it is
 
 Starbie is designed to sit on your desk, show its personality on a small display, and react to how you handle it. Tilting, moving, and otherwise checking in on your pet are meant to be part of the experience.
