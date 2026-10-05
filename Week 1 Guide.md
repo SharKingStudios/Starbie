@@ -28,7 +28,7 @@ Once that's downloaded, you should end up with a file called "Week 1 Care Packag
 
 ![Extracted files](GuidePics/extractedfiles.png)
 
-The .sym files are symbol libraries, while the .pretty folder contains the footprint libraries. You'll have to search up how to install them - I find YouTube works best!
+The .sym files are symbol libraries, while the .pretty folder contains the footprint libraries. **You'll have to search up how to install them - I find YouTube works best!**
 
 ## Schematic Editor
 
@@ -55,7 +55,7 @@ Finally wire all of those together like this:
 
 *(The net labels tell the schematic that those parts need to be connected without having to draw wires all over.)*
 
-Next, we need to add in the buttons to allow for some interaction with our Starbie.
+Next, we need to add in the buttons to allow for some interaction with our Starbie. (Add a SW_Push symbol.)
 
 Connect one side of the button to a net and the other side to GND like this:
 
@@ -71,7 +71,7 @@ Next add in a generic 01x08 pin to represent the MPU6050 module. This will allow
 
 ![MPU6050](GuidePics/mpu6050.png)
 
-Finally, add in the DHT11 sensor. This will allow your Starbie to sense the temperature and moisture of the environment.
+Finally, add in the DHT11 sensor. This will allow your Starbie to sense the temperature and moisture of the environment. (Add a DHT11 symbol.)
 
 ![Environment sensor](GuidePics/envsensor.png)
 
