@@ -40,13 +40,20 @@ First, open KiCad up KiCad and create a new project, then click on the "Schemati
 
 This should open up the schematic editor. Once you're in, press the A key on your keyboard. This should open up a menu where you can add add components.
 
+Here we will be adding all the components we need. In the end you will end up with something like this:
+
+![Final Schematic](GuidePics/endschematic.png)
+
 Search for and add the XIAO-ESP32-C3 (This will be our microcontroller!)
 
 Press P to add in the +5V, +3.3V and GND symbols.
 Create a net label by pressing L on your keyboard and naming the net.
+
 Finally wire all of those together like this:
 
 ![ESP32](GuidePics/esp32.png)
+
+*(The net labels tell the schematic that those parts need to be connected without having to draw wires all over.)*
 
 Next, we need to add in the buttons to allow for some interaction with our Starbie.
 
