@@ -29,4 +29,4 @@ The PCB design, renders, and an Arduino starter firmware are included here. The 
 - `PCB/` - KiCad source files and fabrication exports
 - `Renders/` - front and back PCB renders
 - `Week 1 Guide.md` - project guide material
-- `Firmware/` - Arduino IDE starter sketch and interactive browser simulator
+- `Firmware/` - Arduino IDE starter sketch
