@@ -83,6 +83,8 @@ This should open up a window where you can assign different footprints to your c
 
 ![Footprint Assign](GuidePics/footprintassign.png)
 
+(use the esp32c3 you imported from the Care Package!)
+
 Once you're done, you can hit apply & save schematic. We're now officially done with the schematic! Onto making the physical PCB itself:
 
 ## Route the PCB
@@ -149,7 +151,7 @@ The actual program is [Firmware/Starbie/Starbie.ino](Firmware/Starbie/Starbie.in
    ~~~
 
 3. Open **Tools → Board → Boards Manager**, search for esp32, and install **esp32 by Espressif Systems**.
-4. Connect your XIAO ESP32-C3 with a USB data cable. Under **Tools → Board → esp32**, select **XIAO_ESP32C3**. Under **Tools → Port**, select the new port.
+4. Under **Tools → Board → esp32**, select **XIAO_ESP32C3**.
 5. Open **Sketch → Include Library → Manage Libraries**. Install these libraries one at a time:
 
    - Adafruit GFX Library
@@ -159,7 +161,7 @@ The actual program is [Firmware/Starbie/Starbie.ino](Firmware/Starbie/Starbie.in
 
    If Arduino asks to install dependencies, choose **Install All**.
 
-6. Open Starbie.ino, then click Arduino's arrow-shaped **Upload** button.
+6. Open Starbie.ino. (When you get your board, click Arduino's arrow-shaped **Upload** button.)
 
 The ESP32 package URL, ESP32 Boards Manager install, and XIAO_ESP32C3 board selection are documented by [Espressif](https://docs.espressif.com/projects/arduino-esp32/en/latest/installing.html) and [Seeed Studio](https://wiki.seeedstudio.com/XIAO_ESP32C3_Getting_Started/).
 
