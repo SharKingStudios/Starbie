@@ -187,8 +187,8 @@ These are the pins for this guide's board:
 
 | Part | XIAO label | ESP32-C3 GPIO |
 | --- | --- | --- |
-| OLED SDA and MPU6050 SDA | D4 | GPIO6 |
-| OLED SCL and MPU6050 SCL | D5 | GPIO7 |
+| OLED SDA and MPU6050 SDA | D5 | GPIO7 |
+| OLED SCL and MPU6050 SCL | D4 | GPIO6 |
 | DHT11 data | D1 | GPIO3 |
 | Button 1 | D2 | GPIO4 |
 | Button 2 | D3 | GPIO5 |
