@@ -25,8 +25,8 @@
 
 // --- Your board's pins ----------------------------------------------------
 // These are ESP32-C3 GPIO numbers, with the XIAO pin labels beside them.
-const int I2C_SDA_PIN = 6;       // XIAO D4: OLED + MPU6050 SDA
-const int I2C_SCL_PIN = 7;       // XIAO D5: OLED + MPU6050 SCL
+const int I2C_SDA_PIN = 7;       // XIAO D4: OLED + MPU6050 SDA
+const int I2C_SCL_PIN = 6;       // XIAO D5: OLED + MPU6050 SCL
 const int DHT_PIN = 3;           // XIAO D1: DHT11 data
 const int BUTTON_ONE_PIN = 4;    // XIAO D2: opens/confirms the radial menu
 const int BUTTON_TWO_PIN = 5;    // XIAO D3: shows/hides stats
